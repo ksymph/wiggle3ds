@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiggle3DS</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Wiggle3DS</h1>
+            <p>View Nintendo 3DS <code>.mpo</code> images as animated wigglegrams</p>
+        </header>
+
+        <section id="upload-section">
+            <h2>Upload</h2>
+            <input type="file" id="fileInput" accept=".mpo">
+            <h2>Demos</h2>
+            <div id="demo-thumbnails">
+                <img src="https://raw.githubusercontent.com/user-attachments/assets/c5289f81-5573-45a8-b570-07755b76f2f2" alt="Demo 1" data-src="./demo_1.mpo" data-speed="9" data-offset="48">
+                <img src="https://raw.githubusercontent.com/user-attachments/assets/720d293d-d557-418a-a436-b5d1cd64d50c" alt="Demo 2" data-src="./demo_2.mpo" data-speed="8" data-offset="64">
+                <img src="https://raw.githubusercontent.com/user-attachments/assets/c329b392-50d4-42f8-9a8c-a1288c5cc114" alt="Demo 3" data-src="./demo_3.mpo" data-speed="10" data-offset="95">
+                <img src="https://raw.githubusercontent.com/user-attachments/assets/70327f2f-1a1a-4286-9a2c-f6004b963b61" alt="Demo 4" data-src="./demo_4.mpo" data-speed="9" data-offset="94">
+            </div>
+        </section>
+
+        <main id="main-output" class="hidden">
+            <canvas id="display-canvas"></canvas>
+            
+            <div id="controls">
+                <div class="control-group">
+                    <label for="speed">Speed:</label>
+                    <input type="range" id="speed" name="speed" min="1" max="24" value="8" step="0.5">
+                    <span id="speedValue">8</span> wps
+                </div>
+                <div class="control-group">
+                    <label for="offset">Offset:</label>
+                    <input type="range" id="offset" name="offset" min="0" max="128" value="64" step="1">
+                    <span id="offsetValue">64</span> px
+                </div>
+                <div class="control-group">
+                    <label for="crop">Crop:</label>
+                    <input type="checkbox" id="crop" name="crop" checked>
+                </div>
+            </div>
+
+            <div id="export-section">
+                <button id="exportGif" class="export-button">Export GIF</button>
+                <button id="exportWebm" class="export-button">Export WebM</button>
+                <p id="status"></p>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- GIF.js library for GIF encoding -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    <script src="./script.js"></script>
+
+</body>
+</html>
