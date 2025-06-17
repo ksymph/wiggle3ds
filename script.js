@@ -27,12 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFrame = 0;
 
     // --- MPO Parsing Logic ---
-    // Replicates the original Lua script's logic: find the first SOS marker,
-    // then find the next SOI marker to split the file.
     function parseMPO(arrayBuffer) {
         const view = new Uint8Array(arrayBuffer);
         
-        // Find first Start of Scan (SOS) marker (FF DA)
         let firstSOS = -1;
         for (let i = 0; i < view.length - 1; i++) {
             if (view[i] === 0xFF && view[i + 1] === 0xDA) {
@@ -44,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('Could not find SOS marker in the first image.');
         }
 
-        // Find next Start of Image (SOI) marker (FF D8) after the first SOS
         let splitPoint = -1;
         for (let i = firstSOS; i < view.length - 1; i++) {
             if (view[i] === 0xFF && view[i + 1] === 0xD8) {
@@ -84,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             mainOutput.classList.remove('hidden');
             statusText.textContent = '';
+            // Reset frame to 0 whenever a new image is loaded
+            currentFrame = 0; 
             updateAnimation();
 
         } catch (error) {
@@ -96,28 +94,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function draw() {
         if (!leftImage || !rightImage) return;
 
+        // Use the instance's canvas and context if called via .call() for offscreen rendering
+        const targetCanvas = this.canvas || canvas;
+        const targetCtx = this.ctx || ctx;
+
         const imgToDraw = currentFrame === 0 ? leftImage : rightImage;
         const w = leftImage.width;
         const h = leftImage.height;
         const offset = parseInt(settings.offset, 10);
         
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
 
         if (settings.crop) {
-            canvas.width = w - offset;
-            canvas.height = h;
-            // Crop 'offset' pixels from the right of the left image
-            // and from the left of the right image to align them.
+            targetCanvas.width = w - offset;
+            targetCanvas.height = h;
             const sx = (currentFrame === 0) ? 0 : offset;
-            ctx.drawImage(imgToDraw, sx, 0, w - offset, h, 0, 0, w - offset, h);
+            targetCtx.drawImage(imgToDraw, sx, 0, w - offset, h, 0, 0, w - offset, h);
         } else { // Pad
-            canvas.width = w + offset;
-            canvas.height = h;
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            // Draw left image at (0,0), draw right image shifted by 'offset'
-            const dx = (currentFrame === 0) ? 0 : offset;
-            ctx.drawImage(imgToDraw, dx, 0, w, h);
+            targetCanvas.width = w + offset;
+            targetCanvas.height = h;
+            targetCtx.fillStyle = 'white';
+            targetCtx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+            
+            // --- FIX: Corrected the padding logic ---
+            // The left image (frame 0) should be shifted right, and the right image (frame 1) should be at the origin.
+            const dx = (currentFrame === 0) ? offset : 0;
+            targetCtx.drawImage(imgToDraw, dx, 0, w, h);
         }
     }
 
@@ -159,11 +161,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!response.ok) throw new Error(`Could not fetch demo file.`);
                 const blob = await response.blob();
                 
-                // Set controls to demo defaults
                 speedSlider.value = speed;
                 offsetSlider.value = offset;
-                cropCheckbox.checked = true; // Demos are best viewed cropped
-                handleControlsChange(); // Update state and UI
+                cropCheckbox.checked = true;
+                handleControlsChange(); 
                 
                 await loadImages(blob);
 
@@ -201,25 +202,28 @@ document.addEventListener('DOMContentLoaded', () => {
         setExportingState(true, 'Generating GIF...');
 
         const frameDelay = 1000 / (settings.speed * 2);
+        
+        // --- FIX: Explicitly set the path to the worker script ---
         const gif = new GIF({
             workers: 2,
             quality: 10,
             width: canvas.width,
             height: canvas.height,
+            workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
         });
 
-        // Add frames from an offscreen canvas
         const offscreenCanvas = document.createElement('canvas');
         const offscreenCtx = offscreenCanvas.getContext('2d');
+        const renderContext = { canvas: offscreenCanvas, ctx: offscreenCtx };
         
         // Draw and add frame 1 (left)
         currentFrame = 0;
-        draw.call({ canvas: offscreenCanvas, ctx: offscreenCtx }); // Manually draw to offscreen
+        draw.call(renderContext);
         gif.addFrame(offscreenCtx, { copy: true, delay: frameDelay });
         
         // Draw and add frame 2 (right)
         currentFrame = 1;
-        draw.call({ canvas: offscreenCanvas, ctx: offscreenCtx }); // Manually draw to offscreen
+        draw.call(renderContext);
         gif.addFrame(offscreenCtx, { copy: true, delay: frameDelay });
 
         gif.on('finished', (blob) => {
@@ -241,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setExportingState(true, 'Recording video...');
         
         const chunks = [];
-        const stream = canvas.captureStream(settings.speed * 2); // Match frame rate
+        const stream = canvas.captureStream(settings.speed * 2); 
         const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
 
         recorder.ondataavailable = e => chunks.push(e.data);
@@ -252,6 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         recorder.start();
-        setTimeout(() => recorder.stop(), 5000); // Record for 5 seconds
+        setTimeout(() => recorder.stop(), 5000); 
     });
 });
